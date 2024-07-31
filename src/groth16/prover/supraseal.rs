@@ -9,7 +9,7 @@ use pairing::MultiMillerLoop;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 use super::{ParameterSource, Proof, ProvingAssignment};
-use crate::{gpu::GpuName, BELLMAN_VERSION};
+use crate::{gpu::{GpuName, PriorityLock}, BELLMAN_VERSION};
 
 impl<Scalar> From<&ProvingAssignment<Scalar>> for supraseal_c2::Assignment<Scalar>
 where
@@ -67,6 +67,9 @@ where
 
     let provers = synthesize_circuits_batch(circuits)?;
 
+    info!("acquiring priority lock");
+    let prio_lock = PriorityLock::lock();
+
     // Start fft/multiexp prover timer
     let start = Instant::now();
     info!("starting proof timer");
@@ -107,6 +110,8 @@ where
         proofs.as_mut_slice(),
         srs,
     );
+
+    drop(prio_lock);
 
     let proof_time = start.elapsed();
     info!("prover time: {:?}", proof_time);
